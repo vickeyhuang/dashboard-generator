@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Projects Summary Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .summary { 
+            display: flex; 
+            justify-content: space-around; 
+            margin: 20px 0; 
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+        .summary-item { text-align: center; }
+        .summary-number { font-size: 24px; font-weight: bold; }
+        .todo { color: #FF6B6B; }
+        .progress { color: #4ECDC4; }
+        .blocked {color: #ef4444;}
+        .done { color: #45B7D1; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px;
+        }
+        th, td { 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            text-align: left;
+        }
+        th { background: #f5f5f5; }
+        .links { margin: 20px 0; text-align: center; }
+        .link { 
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Projects Summary Report</h1>
+            <p>Generated on 2026-04-21 13:51</p>
+        </div>
+        
+        <div class="summary">
+            <div class="summary-item">
+                <div class="summary-number todo">288</div>
+                <div>To Do</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number progress">51</div>
+                <div>In Progress</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number blocked">6</div>
+                <div>Blocked</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number done">968</div>
+                <div>Done</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number">1313</div>
+                <div>Total Issues</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number">74%</div>
+                <div>Completion Rate</div>
+            </div>
+        </div>
+        
+        <div class="links">
+            <a href="dashboard_20260421_135143.html" class="link" target="_blank">View Complete Dashboard</a>
+            <a href="pie_chart.html" class="link" target="_blank">View Pie Chart</a>
+            <a href="delivery_progress.html" class="link" target="_blank">View Delivery Progress</a>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>To Do</th>
+                    <th>In Progress</th>
+                    <th>Blocked</th>
+                    <th>Done</th>
+                    <th>Total</th>
+                    <th>Completion %</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>Project A</td>
+                    <td>57</td>
+                    <td>5</td>
+                    <td>0</td>
+                    <td>265</td>
+                    <td>327</td>
+                    <td><strong>81%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project B</td>
+                    <td>19</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td>188</td>
+                    <td>211</td>
+                    <td><strong>89%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project C</td>
+                    <td>34</td>
+                    <td>9</td>
+                    <td>0</td>
+                    <td>150</td>
+                    <td>193</td>
+                    <td><strong>78%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project D</td>
+                    <td>87</td>
+                    <td>15</td>
+                    <td>4</td>
+                    <td>70</td>
+                    <td>176</td>
+                    <td><strong>40%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project E</td>
+                    <td>31</td>
+                    <td>2</td>
+                    <td>1</td>
+                    <td>120</td>
+                    <td>154</td>
+                    <td><strong>78%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project F</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>1</td>
+                    <td>92</td>
+                    <td>103</td>
+                    <td><strong>89%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project G</td>
+                    <td>39</td>
+                    <td>8</td>
+                    <td>0</td>
+                    <td>39</td>
+                    <td>86</td>
+                    <td><strong>45%</strong></td>
+                </tr>
+                <tr>
+                    <td>Project H</td>
+                    <td>16</td>
+                    <td>3</td>
+                    <td>0</td>
+                    <td>44</td>
+                    <td>63</td>
+                    <td><strong>70%</strong></td>
+                </tr>
+                <tr style="background: #f5f5f5; font-weight: bold;">
+                    <td>TOTAL</td>
+                    <td>288</td>
+                    <td>51</td>
+                    <td>6</td>
+                    <td>968</td>
+                    <td>1313</td>
+                    <td>74%</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+            <p><strong>Status Mapping:</strong> To Do = To Do + Backlog + Prioritised | In Progress = In Progress + Review | Blocked = Blocked | Done = Done</p>
+        </div>
+    </div>
+</body>
+</html>
