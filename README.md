@@ -27,25 +27,45 @@ jira_visualizer/
 ### How to Use
 
 #### Run Sample data
+```
 python3 main.py examples/sample_data.csv
 
+```
+
 #### Run Specific data
+```
 python3 main.py your_data.csv output_folder
 
+```
+
 #### Run Excel file
+```
 python3 main.py your_data.xlsx
 
+```
+
 #### Run default file
+```
 ./run.sh
 
+```
+
 #### Run with specific data
+```
 ./run.sh -d data/your_jira_data.csv
 
+```
+
 #### Or run with portfolio/project customization as dashboard title
+```
 ./run.sh --portfolio "Your Portfolio Name" -d data/your_data.csv
 ./run.sh --project "Your Project Name" -d data/your_data.csv
+```
 
 #### Build a dashboard with app.py
+```
 streamlit run app.py
+
+```
 
 
