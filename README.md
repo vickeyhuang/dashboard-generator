@@ -3,6 +3,7 @@
 ## Jira Data Visible Dashboard
 
 ### Structure
+```
 
 jira_visualizer/
 ├── data/                    # Source data dir
@@ -22,7 +23,7 @@ jira_visualizer/
 ├── requirements.txt       # Python dependance
 ├── run.sh                # Run shell（Mac/Linux）
 └── README.md             # Project readme
-
+```
 
 ### How to Use
 
