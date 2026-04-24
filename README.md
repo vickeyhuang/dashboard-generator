@@ -30,31 +30,26 @@ jira_visualizer/
 #### Run Sample data
 ```
 python3 main.py examples/sample_data.csv
-
 ```
 
 #### Run Specific data
 ```
 python3 main.py your_data.csv output_folder
-
 ```
 
 #### Run Excel file
 ```
 python3 main.py your_data.xlsx
-
 ```
 
 #### Run default file
 ```
 ./run.sh
-
 ```
 
 #### Run with specific data
 ```
 ./run.sh -d data/your_jira_data.csv
-
 ```
 
 #### Or run with portfolio/project customization as dashboard title
@@ -66,7 +61,6 @@ python3 main.py your_data.xlsx
 #### Build a dashboard with app.py
 ```
 streamlit run app.py
-
 ```
 
 

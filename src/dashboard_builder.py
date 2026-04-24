@@ -54,8 +54,14 @@ class DashboardBuilder:
     
         with open(dashboard_path, 'w', encoding='utf-8') as f:
             f.write(full_html)
+
+        # Also write a stable filename for easy sharing/bookmarking.
+        stable_dashboard_path = os.path.join(output_dir, "dashboard.html")
+        with open(stable_dashboard_path, 'w', encoding='utf-8') as f:
+            f.write(full_html)
         
         print(f"✅ Dashboard saved: {dashboard_path}")
+        print(f"✅ Dashboard saved: {stable_dashboard_path}")
         
         return dashboard_path
     
@@ -82,6 +88,133 @@ class DashboardBuilder:
                     break
         
         return projects, to_do_values, in_progress_values, blocked_values, done_values, completion_pcts, totals
+
+    def _build_portfolio_metrics(self, project_data):
+        """Build manager-facing KPI and risk metrics from snapshot data."""
+        metrics = []
+        for row in project_data:
+            total = int(row.get('Total', 0) or 0)
+            done = int(row.get('Done', 0) or 0)
+            blocked = int(row.get('Blocked', 0) or 0)
+            in_progress = int(row.get('In Progress', 0) or 0)
+            to_do = int(row.get('To Do', 0) or 0)
+
+            if total <= 0:
+                done_pct = 0.0
+                blocked_pct = 0.0
+                wip_pct = 0.0
+                not_started_pct = 0.0
+            else:
+                done_pct = (done / total) * 100
+                blocked_pct = (blocked / total) * 100
+                wip_pct = (in_progress / total) * 100
+                not_started_pct = (to_do / total) * 100
+
+            # Weighted score prioritizes delivery risk signals from snapshot data.
+            risk_score = (0.5 * blocked_pct) + (0.3 * not_started_pct) + (0.2 * wip_pct)
+            if risk_score >= 20:
+                risk_level = "Critical"
+            elif risk_score >= 10:
+                risk_level = "Watch"
+            else:
+                risk_level = "Healthy"
+
+            metrics.append({
+                'Project': row['Project'],
+                'To Do': to_do,
+                'In Progress': in_progress,
+                'Blocked': blocked,
+                'Done': done,
+                'Total': total,
+                'Completion %': row.get('Completion %', '0%'),
+                'Completion_Percent': int(row.get('Completion_Percent', 0) or 0),
+                'Blocked_Percent': round(blocked_pct, 1),
+                'WIP_Percent': round(wip_pct, 1),
+                'NotStarted_Percent': round(not_started_pct, 1),
+                'Risk_Score': round(risk_score, 1),
+                'Risk_Level': risk_level,
+            })
+        return metrics
+
+    def _create_exec_summary_section(self, project_metrics, total_row):
+        """Create executive summary and focus list section."""
+        total_issues = int(total_row.get('Total', 0) or 0)
+        total_blocked = int(total_row.get('Blocked', 0) or 0)
+        total_in_progress = int(total_row.get('In Progress', 0) or 0)
+        total_to_do = int(total_row.get('To Do', 0) or 0)
+
+        blocked_rate = round((total_blocked / total_issues * 100), 1) if total_issues > 0 else 0.0
+        wip_rate = round((total_in_progress / total_issues * 100), 1) if total_issues > 0 else 0.0
+        not_started_rate = round((total_to_do / total_issues * 100), 1) if total_issues > 0 else 0.0
+        remaining_rate = round(((total_to_do + total_in_progress + total_blocked) / total_issues * 100), 1) if total_issues > 0 else 0.0
+
+        risk_sorted = sorted(project_metrics, key=lambda x: (-x['Risk_Score'], x['Completion_Percent']))
+        focus_projects = risk_sorted[:3]
+        healthy_count = len([p for p in project_metrics if p['Risk_Level'] == 'Healthy'])
+        watch_count = len([p for p in project_metrics if p['Risk_Level'] == 'Watch'])
+        critical_count = len([p for p in project_metrics if p['Risk_Level'] == 'Critical'])
+
+        if critical_count > 0:
+            headline = f"Portfolio needs intervention: {critical_count} critical {self.column_plural_name.lower()}."
+            headline_class = "headline-critical"
+        elif watch_count > 0:
+            headline = f"Portfolio is stable with {watch_count} {self.column_plural_name.lower()} to watch."
+            headline_class = "headline-watch"
+        else:
+            headline = f"Portfolio is healthy across all {self.column_plural_name.lower()}."
+            headline_class = "headline-healthy"
+
+        focus_items = []
+        for p in focus_projects:
+            focus_items.append(
+                f"""
+                <li>
+                    <span class="focus-name">{p['Project']}</span>
+                    <span class="focus-meta">
+                        Risk {p['Risk_Score']:.1f} · Completion {p['Completion_Percent']}% · Blocked {p['Blocked_Percent']}%
+                    </span>
+                </li>
+                """
+            )
+
+        return f"""
+        <div class="exec-summary-section">
+            <div class="exec-summary-card card">
+                <div class="exec-header">
+                    <h2 class="card-title">Executive Summary</h2>
+                    <span class="summary-pill {headline_class}">{headline}</span>
+                </div>
+                <div class="exec-kpi-grid">
+                    <div class="exec-kpi-card kpi-standard">
+                        <div class="kpi-label">Not Started</div>
+                        <div class="kpi-value todo">{not_started_rate}%</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-standard">
+                        <div class="kpi-label">Blocked Rate</div>
+                        <div class="kpi-value blocked">{blocked_rate}%</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-standard">
+                        <div class="kpi-label">WIP Rate</div>
+                        <div class="kpi-value progress">{wip_rate}%</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-standard">
+                        <div class="kpi-label">Remaining Work</div>
+                        <div class="kpi-value todo">{remaining_rate}%</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-wide">
+                        <div class="kpi-label">Risk Mix</div>
+                        <div class="kpi-value total">Healthy {healthy_count} / Watch {watch_count} / Critical {critical_count}</div>
+                    </div>
+                </div>
+                <div class="focus-list-wrap">
+                    <h3>Top Focus {self.column_plural_name}</h3>
+                    <ul class="focus-list">
+                        {''.join(focus_items)}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        """
 
     def _create_pie_charts_section(self, project_data, total_row, projects_order):
         """Create pie chart section"""
@@ -994,13 +1127,25 @@ class DashboardBuilder:
                     </div>
                     <p>Completion percentage is calculated as: <strong>Done Issues / Total Issues × 100%</strong></p>
                 </div>
+
+                <div class="explanation-group">
+                    <h3>⚠️ Risk Score Calculation</h3>
+                    <p>Risk Score is a weighted indicator based on current issue status distribution for each project:</p>
+                    <ul>
+                        <li><strong>Blocked %</strong> = Blocked / Total × 100</li>
+                        <li><strong>WIP %</strong> = In Progress / Total × 100</li>
+                        <li><strong>Not Started %</strong> = To Do / Total × 100</li>
+                        <li><strong>Risk Score</strong> = 0.5 × Blocked % + 0.3 × Not Started % + 0.2 × WIP %</li>
+                    </ul>
+                    <p>Risk levels are classified as: <strong>Healthy (&lt;10)</strong>, <strong>Watch (10-19.9)</strong>, and <strong>Critical (≥20)</strong>.</p>
+                </div>
             </div>
         </div>
         """
         
         return explanations_html
     
-    def _create_table_html(self, project_data, total_row):
+    def _create_table_html(self, project_metrics, total_row):
         """Create data table HTML - with dynamic column name, add Blocked column"""
         column_display_name = self.column_display_name if hasattr(self, 'column_display_name') else "Project"
         column_plural_name = self.column_plural_name if hasattr(self, 'column_plural_name') else "Projects"
@@ -1010,9 +1155,30 @@ class DashboardBuilder:
         column_header = column_display_name
 
         table_rows = []
+        total_issues = int(total_row.get('Total', 0) or 0)
+        total_blocked = int(total_row.get('Blocked', 0) or 0)
+        total_in_progress = int(total_row.get('In Progress', 0) or 0)
+        total_to_do = int(total_row.get('To Do', 0) or 0)
+
+        total_blocked_pct = round((total_blocked / total_issues) * 100, 1) if total_issues > 0 else 0.0
+        total_wip_pct = round((total_in_progress / total_issues) * 100, 1) if total_issues > 0 else 0.0
+        total_not_started_pct = round((total_to_do / total_issues) * 100, 1) if total_issues > 0 else 0.0
+        total_risk_score = round(
+            (0.5 * total_blocked_pct) + (0.3 * total_not_started_pct) + (0.2 * total_wip_pct),
+            1
+        )
+
+        if total_risk_score >= 20:
+            total_risk_level = "Critical"
+        elif total_risk_score >= 10:
+            total_risk_level = "Watch"
+        else:
+            total_risk_level = "Healthy"
         
         # 项目行
-        for row in project_data:
+        sorted_metrics = sorted(project_metrics, key=lambda x: (-x['Risk_Score'], x['Completion_Percent']))
+
+        for row in sorted_metrics:
             completion_pct = row['Completion_Percent']
             
             if completion_pct >= 80:
@@ -1024,13 +1190,17 @@ class DashboardBuilder:
             
             table_rows.append(f"""
             <tr>
-                <td class="project-name">{row['Project']}</td>
+                <td class="project-name" title="{row['Project']}">{row['Project']}</td>
                 <td><span class="status-badge status-todo">{row['To Do']}</span></td>
                 <td><span class="status-badge status-progress">{row['In Progress']}</span></td>
                 <td><span class="status-badge status-blocked">{row['Blocked']}</span></td>
                 <td><span class="status-badge status-done" style="background-color: #10b981; color: white;">{row['Done']}</span></td>
                 <td>{row['Total']}</td>
                 <td class="completion-cell {completion_class}">{row['Completion %']}</td>
+                <td class="metric-cell">{row['Blocked_Percent']}%</td>
+                <td class="metric-cell">{row['WIP_Percent']}%</td>
+                <td><span class="risk-badge risk-{row['Risk_Level'].lower()}">{row['Risk_Level']}</span></td>
+                <td class="metric-cell risk-score">{row['Risk_Score']}</td>
             </tr>
             """)
         
@@ -1044,6 +1214,10 @@ class DashboardBuilder:
             <td>{total_row['Done']}</td>
             <td>{total_row['Total']}</td>
             <td class="completion-cell">{total_row['Completion %']}</td>
+            <td>{total_blocked_pct}%</td>
+            <td>{total_wip_pct}%</td>
+            <td><span class="risk-badge risk-{total_risk_level.lower()}">{total_risk_level}</span></td>
+            <td class="metric-cell risk-score">{total_risk_score}</td>
         </tr>
         """)
         
@@ -1055,13 +1229,17 @@ class DashboardBuilder:
                 <table>
                     <thead>
                         <tr>
-                            <th>{column_header}</th>
+                            <th width="22%">{column_header}</th>
                             <th width="10%">To Do</th>
                             <th width="10%">In Progress</th>
                             <th width="10%">Blocked</th>
                             <th width="10%">Done</th>
                             <th width="10%">Total</th>
                             <th width="10%" class="completion-header">Completion</th>
+                            <th width="10%">Blocked %</th>
+                            <th width="10%">WIP %</th>
+                            <th width="10%">Risk Level</th>
+                            <th width="10%">Risk Score</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1114,8 +1292,11 @@ class DashboardBuilder:
         bar_chart_html = self._create_bar_chart_section(projects, to_do_values, in_progress_values, 
                                                       blocked_values, done_values, completion_pcts, max_total)
         
+        project_metrics = self._build_portfolio_metrics(project_data)
+        exec_summary_html = self._create_exec_summary_section(project_metrics, total_row)
+
         # Create table section
-        table_html = self._create_table_html(project_data, total_row)
+        table_html = self._create_table_html(project_metrics, total_row)
         
         # Create explanations section
         explanations_html = self._create_explanations_section()
@@ -1145,8 +1326,20 @@ class DashboardBuilder:
                 font-family: 'Segoe UI', Arial, sans-serif;
             }}
             
+            :root {{
+                --bg-page: #f8fafc;
+                --bg-card: #ffffff;
+                --bg-muted: #f8fafc;
+                --text-primary: #1e293b;
+                --text-secondary: #64748b;
+                --border-soft: #e2e8f0;
+                --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.08);
+                --radius-card: 16px;
+                --radius-sm: 10px;
+            }}
+            
             body {{
-                background-color: #f8fafc;
+                background-color: var(--bg-page);
                 padding: 30px 20px;
                 color: #334155;
                 min-width: 1200px;
@@ -1159,9 +1352,9 @@ class DashboardBuilder:
             
             /* Common Cards Style */
             .card {{
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+                background: var(--bg-card);
+                border-radius: var(--radius-card);
+                box-shadow: var(--shadow-card);
                 padding: 25px 30px 30px 30px;
                 transition: transform 0.3s ease;
                 height: 100%;
@@ -1172,8 +1365,8 @@ class DashboardBuilder:
             }}
             
             .card-title {{
-                font-size: 1.5rem;
-                color: #1e293b;
+                font-size: 1.4rem;
+                color: var(--text-primary);
                 margin-bottom: 22px;
                 padding-bottom: 14px;
                 border-bottom: 2px solid #f1f5f9;
@@ -1289,9 +1482,9 @@ class DashboardBuilder:
             }}
             
             .overview-card {{
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+                background: var(--bg-card);
+                border-radius: var(--radius-card);
+                box-shadow: var(--shadow-card);
                 padding: 25px;
                 transition: transform 0.3s ease;
                 text-align: center;
@@ -1310,7 +1503,7 @@ class DashboardBuilder:
             
             .overview-label {{
                 font-size: 1rem;
-                color: #64748b;
+                color: var(--text-secondary);
                 font-weight: 500;
             }}
             
@@ -1321,6 +1514,125 @@ class DashboardBuilder:
             .overview-done .overview-value {{ color: #059669; }}
             .overview-total .overview-value {{ color: #1e293b; }}
             .overview-completion .overview-value {{ color: #059669; }}
+
+            .exec-summary-section {{
+                margin-bottom: 40px;
+            }}
+
+            .exec-summary-card {{
+                background: var(--bg-card);
+            }}
+
+            .exec-header {{
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 14px;
+            }}
+
+            .summary-pill {{
+                padding: 6px 12px;
+                border-radius: var(--radius-sm);
+                font-size: 0.82rem;
+                font-weight: 600;
+                border: 1px solid transparent;
+                background: var(--bg-muted);
+            }}
+
+            .headline-healthy {{
+                background: #f0fdf4;
+                color: #166534;
+                border-color: #bbf7d0;
+            }}
+
+            .headline-watch {{
+                background: #fffbeb;
+                color: #92400e;
+                border-color: #fde68a;
+            }}
+
+            .headline-critical {{
+                background: #fef2f2;
+                color: #991b1b;
+                border-color: #fecaca;
+            }}
+
+            .exec-kpi-grid {{
+                display: grid;
+                grid-template-columns: repeat(12, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 14px;
+            }}
+
+            .exec-kpi-card {{
+                background: var(--bg-muted);
+                border: 1px solid var(--border-soft);
+                border-radius: var(--radius-sm);
+                padding: 12px 14px;
+            }}
+
+            .exec-kpi-card.kpi-standard {{
+                grid-column: span 2;
+            }}
+
+            .exec-kpi-card.kpi-wide {{
+                grid-column: span 4;
+            }}
+
+            .kpi-label {{
+                font-size: 0.82rem;
+                color: var(--text-secondary);
+                margin-bottom: 6px;
+            }}
+
+            .kpi-value {{
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: #0f172a;
+            }}
+
+            .kpi-value.blocked {{ color: #dc2626; }}
+            .kpi-value.progress {{ color: #2563eb; }}
+            .kpi-value.todo {{ color: #64748b; }}
+            .kpi-value.total {{ color: #0f172a; }}
+
+            .focus-list-wrap {{
+                border-top: 1px solid var(--border-soft);
+                padding-top: 14px;
+            }}
+
+            .focus-list-wrap h3 {{
+                font-size: 1rem;
+                color: var(--text-primary);
+                margin-bottom: 10px;
+            }}
+
+            .focus-list {{
+                list-style: none;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 10px;
+            }}
+
+            .focus-list li {{
+                background: var(--bg-card);
+                border: 1px solid var(--border-soft);
+                border-radius: var(--radius-sm);
+                padding: 10px;
+            }}
+
+            .focus-name {{
+                display: block;
+                font-weight: 600;
+                color: #0f172a;
+                margin-bottom: 4px;
+            }}
+
+            .focus-meta {{
+                color: #475569;
+                font-size: 0.82rem;
+            }}
             
             /* ===============================
                3. Pie Charts Section - Three
@@ -1461,8 +1773,9 @@ class DashboardBuilder:
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                min-width: 800px;
+                min-width: 1200px;
                 font-size: 0.9rem;
+                table-layout: fixed;
             }}
             
             thead {{
@@ -1492,8 +1805,13 @@ class DashboardBuilder:
             }}
             
             tr.total-row {{
-                background-color: #f8fafc;
+                background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
                 font-weight: 600;
+                transition: background 0.2s ease;
+            }}
+
+            tr.total-row:hover {{
+                background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
             }}
             
             .completion-cell {{
@@ -1541,6 +1859,45 @@ class DashboardBuilder:
             .project-name {{
                 font-weight: 500;
                 color: #1e293b;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: block;
+            }}
+
+            .metric-cell {{
+                font-weight: 600;
+                color: #334155;
+            }}
+
+            .risk-badge {{
+                display: inline-block;
+                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }}
+
+            .risk-healthy {{
+                background: #dcfce7;
+                color: #166534;
+            }}
+
+            .risk-watch {{
+                background: #fef3c7;
+                color: #92400e;
+            }}
+
+            .risk-critical {{
+                background: #fee2e2;
+                color: #991b1b;
+            }}
+
+            .risk-score {{
+                color: #0f172a;
+                font-weight: 700;
             }}
             
             /* ===============================
@@ -1637,6 +1994,19 @@ class DashboardBuilder:
                 .overview-section {{
                     grid-template-columns: repeat(4, 1fr);
                 }}
+
+                .exec-kpi-grid {{
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                }}
+
+                .exec-kpi-card.kpi-standard,
+                .exec-kpi-card.kpi-wide {{
+                    grid-column: span 1;
+                }}
+
+                .focus-list {{
+                    grid-template-columns: 1fr;
+                }}
                 
                 [style*="grid-template-columns: repeat(3, 1fr)"] {{
                     grid-template-columns: repeat(2, 1fr) !important;
@@ -1651,6 +2021,20 @@ class DashboardBuilder:
                 
                 .overview-section {{
                     grid-template-columns: repeat(3, 1fr);
+                }}
+
+                .exec-header {{
+                    flex-direction: column;
+                    align-items: flex-start;
+                }}
+
+                .exec-kpi-grid {{
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }}
+
+                .exec-kpi-card.kpi-standard,
+                .exec-kpi-card.kpi-wide {{
+                    grid-column: span 1;
                 }}
                 
                 [style*="grid-template-columns: repeat(3, 1fr)"] {{
@@ -1722,6 +2106,8 @@ class DashboardBuilder:
                     <div class="overview-label">Blocked Rate</div>
                 </div>
             </div>
+
+            {exec_summary_html}
             
             <!-- Three Pie Charts -->
             {pie_charts_html}
